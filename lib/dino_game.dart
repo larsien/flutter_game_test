@@ -1,90 +1,113 @@
-import 'dart:ui';
-import 'package:flame/components.dart';
+import 'dart:developer';
 import 'package:flame/experimental.dart';
+import 'package:flame/flame.dart';
 import 'package:flame/game.dart';
 import 'package:flutter_game_test/button.dart';
 import 'package:flutter_game_test/cactus.dart';
-import 'package:flutter_game_test/dino_player.dart';
-import 'package:flutter_game_test/dino_world.dart';
+import 'package:flutter_game_test/coin.dart';
+import 'package:flutter_game_test/constsnts.dart';
+import 'package:flutter_game_test/dino.dart';
+import 'package:flutter_game_test/dino_background.dart';
+import 'package:flutter_game_test/dino_land.dart';
 import 'package:flutter_game_test/game_state.dart';
-import 'package:flutter_game_test/option.dart';
+import 'package:flutter_game_test/score.dart';
 
 class DinoGame extends FlameGame
     with HasTappableComponents, HasCollisionDetection {
-  final DinoPlayer dino = DinoPlayer();
-  final DinoWorld _dinoWorld = DinoWorld();
+  final ScoreComponent scoreComponent = ScoreComponent();
+  final DinoBackground _dinoBackground = DinoBackground();
+  final DinoLand dinoLand = DinoLand();
   final Button _button = Button();
-  final Cactus _cactus = Cactus();
-  // final Camera _camera = Camera();
+  final Dino dino = Dino();
+
+  final double characterRatio = 3; //n 분의 1
+  final double coinRatio = 15; //n 분의 1
+  final double dinoSize = 100;
+
+  int initialGameSpeed = 3;
+  int gameSpeed = 3;
+
+  double cactusPositionX = 800;
+
+  int currentFrame = 0;
+  double elapsedTime = 0;
+  int logI = 0;
   @override
   Future<void> onLoad() async {
-    print("test");
-    // double maxSide = min(size.x, size.y);
-    // print(maxSide);
     super.onLoad();
-
-    await add(_dinoWorld);
-    await add(_cactus);
+    Flame.images.loadAllImages();
+    await add(_dinoBackground);
+    await add(dinoLand);
     await add(dino);
     await add(_button);
-
-    // camera.followComponent(_dinoPlayer);
-    // _dinoPlayer.position = _dinoWorld.size;
-    // camera.viewport = FixedResolutionViewport(size);
-    // camera.followComponent(
-    //   relativeOffset: Anchor.centerLeft,
-    //   _dino,
-    // );
+    await add(scoreComponent);
+    log("size x : ${size.x}, size y : ${size.y}");
   }
 
-  int i = 0;
-  double dinoMoved = 0;
   @override
-  void update(double t) {
-    super.update(t);
-    // printDebug(t);
-    // if (_dino.position.x.abs() + size.x > _dinoWorld.size.x.abs()) {
-    //   // _dinoWorld.position.x = _dinoWorld.size.x - size.x;
-    //   // _dino.position.x = 20;
-    //   SpriteComponent newWorldcomponent = SpriteComponent();
-    //   newWorldcomponent.sprite = _dinoWorld.sprite;
-    //   newWorldcomponent.sprite!.srcPosition =
-    //       Vector2(_dinoWorld.size.x, _dinoWorld.size.y);
-    //   newWorldcomponent.sprite = _dinoWorld.sprite;
-    //   _dinoWorld.add(newWorldcomponent);
-    //   // gameState = GameState.pause;
-    // }
-    //속도는 5, 60프레임이 1초, 1초에 300픽셀 이동. 2초에 한개씩 나오게 하기
+  void update(double dt) {
+    super.update(dt);
+    elapsedTime += dt;
+    currentFrame += 1;
     switch (gameState) {
       case GameState.beforeStart:
-        _cactus.getRandomCactus(600);
         break;
+      case GameState.fever:
+      case GameState.invulnerable:
       case GameState.play:
-        dinoMoved += GAME_SPEED;
-        if (dinoMoved % 600 == 5) {
-          _cactus.getRandomCactus(600);
+        if (gameState == GameState.fever && currentFrame > dino.feverEndFrame) {
+          dino.endFever();
         }
-
-        // if (checkIf2CompoCollision(_dino.toRect(), _cactus.toRect())) {
-        //   gameState = GameState.gameover;
+        if (scoreComponent.score > 25) {
+          gameSpeed = 6;
+        } else if (scoreComponent.score > 50) {
+          gameSpeed = 9;
+        } else if (scoreComponent.score > 60) {
+          gameSpeed = 12;
+        } else if (scoreComponent.score > 70) {
+          gameSpeed = 15;
+        } else if (scoreComponent.score > 80) {
+          gameSpeed = 18;
+        } else if (scoreComponent.score > 90) {
+          gameSpeed = 21;
+        }
+        if (elapsedTime > 1) {
+          for (int k = 0; k <= 10; k += 10) {
+            add(Coin(cactusPositionX + k));
+            if (gameState == GameState.fever) {
+              add(Coin(cactusPositionX + k + 50));
+              add(Coin(cactusPositionX + k + 70));
+            }
+          }
+        }
         // }
+        if (elapsedTime > 1) {
+          // if (dinoMoved % size.x == GAME_SPEED * 1) {
+          add(Cactus(cactusPositionX));
+        }
+        // log(
+        //     "$frame, dinoMoved: $dinoMoved,zFlipScreenWidthHeight.x: ${size.x} ");
+
         break;
       case GameState.gameover:
+        gameSpeed = initialGameSpeed;
         break;
     }
+    if (elapsedTime > 1) {
+      elapsedTime = 0;
+    }
 
-    printDebug(t);
+    printDebug(dt);
   }
 
   void printDebug(double t) {
-    if (i % 120 == 0) {
-      print(
-          "$i, _dino.position.x :${dino.position.x}, size.x : ${size.x} ,  _dinoWorld.size.x :${_dinoWorld.size.x}");
-      print(
-          "_dino.position.x + size.x :${dino.position.x + size.x}, cactus x :${600}");
+    if (logI % 30 == 0) {
+      log("$logI, sumtime : $elapsedTime, _dino.position.x :${dino.position.x}, size.x : ${size.x} ,  _dinoWorld.size.x :${dinoLand.size.x}");
+      log("position.x + size.x :${dino.position.x + size.x}, cactus x :${600}");
+      log("currentFrame : $currentFrame, dino.feverEndFrame :${dino.feverEndFrame}, ");
     }
 
-    i += 1;
+    logI += 1;
   }
 
   @override
@@ -92,10 +115,18 @@ class DinoGame extends FlameGame
     super.onTapDown(event);
     if (gameState == GameState.beforeStart) {
       gameState = GameState.play;
-    } else if (gameState == GameState.play) {
-      dino.speedY += dino.jumpSpeed;
+    } else if (gameState == GameState.play ||
+        gameState == GameState.fever ||
+        gameState == GameState.invulnerable) {
+      if (dino.speedY == 0) {
+        dino.speedY += dino.jumpSpeed;
+      }
     } else if (gameState == GameState.gameover) {
-      gameState = GameState.beforeStart;
+      if (overlays.isActive(Constants.overlayName)) {
+        overlays.remove(Constants.overlayName);
+      } else {
+        gameState = GameState.beforeStart;
+      }
     }
   }
 }
