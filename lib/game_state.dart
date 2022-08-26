@@ -1,3 +1,3 @@
-enum GameState { beforeStart, play, gameover }
+enum GameState { beforeStart, play, fever, invulnerable, gameover }
 
 GameState gameState = GameState.beforeStart;
