@@ -1,64 +1,41 @@
-import 'dart:math';
+import 'dart:developer';
+import 'dart:math' hide log;
 
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/flame.dart';
-import 'package:flutter_game_test/dino_player.dart';
+import 'package:flutter_game_test/dino.dart';
 import 'package:flutter_game_test/game_state.dart';
-import 'package:flutter_game_test/option.dart';
 
 import 'constsnts.dart';
 import 'dino_game.dart';
 
 class Cactus extends SpriteComponent
     with HasGameRef<DinoGame>, CollisionCallbacks {
-  Cactus() : super(size: Vector2(88, 92));
-  late final double yPosition;
-  List<Sprite?> cactusList = [];
-  double worldGroundYSize = 12;
+  Cactus(this.positionX) : super();
+
+  final double positionX;
+  int i = 0;
+  double jumpSpeed = -500;
+  final double cactusMinimumSize = 80;
+  final int randomHeightMax = 10;
   @override
   Future<void> onLoad() async {
     super.onLoad();
-    //add hitbox
-    add(RectangleHitbox.relative(Vector2(0.8, 0.8), parentSize: size));
-
-    anchor = Anchor.bottomLeft;
-    final image = await Flame.images.load(Constants.spriteAsset);
-    sprite =
-        Sprite(image, srcPosition: Vector2(652, 2), srcSize: Vector2(49, 100));
-    Sprite sprite2 =
-        Sprite(image, srcPosition: Vector2(701, 2), srcSize: Vector2(49, 100));
-    Sprite sprite3 =
-        Sprite(image, srcPosition: Vector2(752, 2), srcSize: Vector2(50, 100));
-    cactusList.add(sprite);
-    cactusList.add(sprite2);
-    cactusList.add(sprite3);
     anchor = Anchor.bottomCenter;
-    yPosition = gameRef.size.y / 2 - worldGroundYSize;
-    // sprite = await gameRef.loadSprite(Constants.finn);
-    // position = Vector2(gameRef.size.x, yPosition);
-    // print("Cactus : $position, ${sprite1.srcSize}");
-  }
-
-  double ACCELATION = 1200;
-  double speedY = 0.0;
-  double jumpSpeed = -500;
-  double xLocation = 595;
-  int i = 0;
-  void getRandomCactus(double locationX) {
-    Random random = Random();
-    sprite = cactusList[random.nextInt(cactusList.length)];
-    position.x = locationX;
-    position.y = yPosition;
-  }
-
-  @override
-  void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
-    // if (other is DinoPlayer) {
-    //   gameState = GameState.gameover;
-    //   print("collision !!!!");
-    // }
-    super.onCollision(intersectionPoints, gameRef.dino);
+    //set image
+    final image = await Flame.images.load('cactus.png');
+    sprite = Sprite(image);
+    // Sprite sprite2 =
+    //     Sprite(image, srcPosition: Vector2(701, 2), srcSize: Vector2(49, 100));
+    //set position
+    double positionY = gameRef.size.y / 2 - gameRef.dinoLand.size.y;
+    position = Vector2(positionX, positionY);
+    //set size
+    int heightToAdd = Random().nextInt(randomHeightMax) + 1;
+    size = Vector2(30, cactusMinimumSize + heightToAdd.toDouble());
+    add(RectangleHitbox.relative(Vector2(0.4, 0.5), parentSize: size));
+    log("cactus : $size ");
   }
 
   @override
@@ -66,26 +43,38 @@ class Cactus extends SpriteComponent
     Set<Vector2> intersectionPoints,
     PositionComponent other,
   ) {
-    if (other is DinoPlayer) {
-      gameState = GameState.gameover;
-      print("collision start !!!!");
+    if (gameState == GameState.play) {
+      if (other is Dino) {
+        gameState = GameState.gameover;
+        gameRef.overlays.add(Constants.overlayName);
+      }
+    } else {
+      if (other is Dino) {
+        removeFromParent();
+        gameRef.scoreComponent.addScore(10);
+      }
     }
     super.onCollisionStart(intersectionPoints, other);
   }
-  // @override
-  // void onConllision(){
-  //   super.onCollision(intersectionPoints, other)
-  // }
 
   @override
-  void update(double t) {
-    super.update(t);
+  void update(double dt) {
+    super.update(dt);
     switch (gameState) {
       case GameState.beforeStart:
+        removeFromParent();
         break;
+      case GameState.invulnerable:
       case GameState.play:
-        position.x -= GAME_SPEED;
+      case GameState.fever:
+        if (gameState == GameState.fever) {}
+
+        position.x -= gameRef.gameSpeed;
+        if (position.x < -200) {
+          removeFromParent();
+        }
         break;
+
       case GameState.gameover:
         break;
     }
@@ -93,8 +82,7 @@ class Cactus extends SpriteComponent
 
   void debugState(double t) {
     if (i % 60 == 59) {
-      print(
-          "$i, gameState:$gameState, time : $t, speedY: $speedY, psition.x : ${position.x}, position.y : ${position.y}, initialYPosition : $yPosition");
+      log("$i, gameState:$gameState, time : $t, psition.x : ${position.x}, position.y : ${position.y}, ");
       i = 0;
     }
     i++;
